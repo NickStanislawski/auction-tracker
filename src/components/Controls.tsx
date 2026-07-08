@@ -1,6 +1,7 @@
 import { ArrowUpDown, Plus, Search } from "lucide-react";
-import type { SortDir, SortKey, ViewMode } from "../types";
+import type { SortDir, SortKey, Vehicle, ViewMode } from "../types";
 import { SORT_OPTIONS } from "../utils/vehicle";
+import ImportButton from "./ImportButton";
 
 interface ControlsProps {
   query: string;
@@ -14,6 +15,7 @@ interface ControlsProps {
   boughtOnly: boolean;
   setBoughtOnly: (b: boolean) => void;
   onAddVehicle: () => void;
+  onImportVehicles: (date: string | null, vehicles: Vehicle[]) => void;
 }
 
 export default function Controls({
@@ -28,6 +30,7 @@ export default function Controls({
   boughtOnly,
   setBoughtOnly,
   onAddVehicle,
+  onImportVehicles,
 }: ControlsProps) {
   return (
     <div className="gaa-controls">
@@ -63,6 +66,7 @@ export default function Controls({
       <button className={`gaa-chip ${boughtOnly ? "active" : ""}`} onClick={() => setBoughtOnly(!boughtOnly)}>
         Bought only
       </button>
+      <ImportButton onImport={onImportVehicles} />
       <button className="gaa-add-btn" onClick={onAddVehicle}>
         <Plus size={15} /> Add Vehicle
       </button>

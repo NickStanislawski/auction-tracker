@@ -59,6 +59,53 @@ export default function App() {
     setSelectedId(null);
   };
 
+  // Imports vehicles parsed from an uploaded Excel/CSV run list. If the file
+  // had a date in its title, that becomes the target day (creating it if
+  // needed); otherwise it lands on whatever day is currently active. Vehicles
+  // are merged by VIN: a VIN that already exists on that day keeps its id and
+  // any notes/bought status you've already entered, but gets its auction
+  // fields (lane, run, miles, CR, MMR, etc.) refreshed from the file. New
+  // VINs are appended.
+  const importVehicles = (importedDate: string | null, vehicles: Vehicle[]) => {
+    const targetDate = importedDate || activeDate;
+
+    setDays((prev) => {
+      const existing = prev.find((d) => d.date === targetDate);
+      if (!existing) {
+        return [...prev, { date: targetDate, vehicles }];
+      }
+
+      const merged = [...existing.vehicles];
+      vehicles.forEach((incoming) => {
+        const idx = incoming.vin ? merged.findIndex((v) => v.vin === incoming.vin) : -1;
+        if (idx >= 0) {
+          const current = merged[idx];
+          merged[idx] = {
+            ...incoming,
+            id: current.id,
+            cf: current.cf,
+            bb: current.bb,
+            ret: current.ret,
+            sell: current.sell,
+            buy: current.buy,
+            bought: current.bought,
+            boughtPrice: current.boughtPrice,
+          };
+        } else {
+          merged.push(incoming);
+        }
+      });
+
+      return prev.map((d) => (d.date === targetDate ? { ...d, vehicles: merged } : d));
+    });
+
+    setActiveDate(targetDate);
+    setCalendarViewDate(parseDateStr(targetDate));
+    setQuery("");
+    setBoughtOnly(false);
+    setSelectedId(null);
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return activeDay.vehicles.filter((v) => {
@@ -197,6 +244,7 @@ export default function App() {
         boughtOnly={boughtOnly}
         setBoughtOnly={setBoughtOnly}
         onAddVehicle={addVehicle}
+        onImportVehicles={importVehicles}
       />
 
       <VehicleList view={view} sorted={sorted} lanes={lanes} onSelect={setSelectedId} onAddVehicle={addVehicle} />
