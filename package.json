@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://NickStanislawski.github.io/auction-notes",
+  "homepage": "https://NickStanislawski.github.io/auction-tracker",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
