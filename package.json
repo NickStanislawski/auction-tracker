@@ -1,0 +1,27 @@
+{
+  "name": "gaa-run-list",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "homepage": "https://NickStanislawski.github.io/auction-notes",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "lucide-react": "^0.383.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "gh-pages": "^6.3.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4"
+  }
+}
