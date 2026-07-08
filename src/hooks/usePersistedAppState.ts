@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type { AppState, DayEntry } from "../types";
 import { INITIAL_STATE } from "../data/seedVehicles";
 
-const STORAGE_KEY = "gaa-app-state-v2";
+// NOTE ON GITHUB PAGES: localStorage is scoped per-ORIGIN (protocol + host),
+// not per path. All of your project pages (username.github.io/repo-a,
+// username.github.io/repo-b, etc.) share the same origin, so they also share
+// the same localStorage bucket. If this key ever collides with another repo
+// (or an older deployment of this one), you'll see "someone else's" data.
+// Keep this key unique/specific to this app to avoid that.
+const STORAGE_KEY = "gaa-run-list-app::v1";
 
 interface UsePersistedAppState {
   days: DayEntry[];
@@ -17,6 +23,13 @@ interface UsePersistedAppState {
  * Loads/saves { days, activeDate } to localStorage, debounced, with a brief
  * "Saved" flash whenever a write completes. Falls back to the bundled seed
  * data the first time the app runs on a given browser.
+ *
+ * IMPORTANT: once something has been saved to localStorage, it normally takes
+ * full precedence over INITIAL_STATE forever — so updating seedVehicles.ts
+ * later (e.g. adding new dates) would silently have no effect for anyone who
+ * already has saved state. To avoid that, on load we merge in any seed date
+ * that isn't already present in the saved data, while leaving all existing
+ * saved days (and any edits made to them) untouched.
  */
 export function usePersistedAppState(): UsePersistedAppState {
   const [days, setDays] = useState<DayEntry[]>(INITIAL_STATE.days);
@@ -27,18 +40,33 @@ export function usePersistedAppState(): UsePersistedAppState {
 
   // Load once on mount
   useEffect(() => {
+    let loadedDays: DayEntry[] = INITIAL_STATE.days;
+    let loadedActiveDate: string = INITIAL_STATE.activeDate;
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed: AppState = JSON.parse(raw);
         if (parsed.days && parsed.days.length) {
-          setDays(parsed.days);
-          setActiveDate(parsed.activeDate || parsed.days[0].date);
+          loadedDays = parsed.days;
+          loadedActiveDate = parsed.activeDate || parsed.days[0].date;
         }
       }
     } catch {
-      // nothing saved yet, or it was corrupt — start from seed data
+      // nothing saved yet, or it was corrupt — fall back to seed data
     }
+
+    // Merge in any seed day not already present in the saved data, so that
+    // new dates added to seedVehicles.ts always show up, even on a browser
+    // that already has older saved state.
+    const existingDates = new Set(loadedDays.map((d) => d.date));
+    const missingSeedDays = INITIAL_STATE.days.filter((d) => !existingDates.has(d.date));
+    if (missingSeedDays.length) {
+      loadedDays = [...loadedDays, ...missingSeedDays];
+    }
+
+    setDays(loadedDays);
+    setActiveDate(loadedActiveDate);
     setHydrated(true);
   }, []);
 
