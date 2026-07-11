@@ -8,9 +8,10 @@ interface VehicleListProps {
   lanes: [string, Vehicle[]][];
   onSelect: (id: string) => void;
   onAddVehicle: () => void;
+  onUpdate: (id: string, field: keyof Vehicle, value: string | boolean) => void;
 }
 
-export default function VehicleList({ view, sorted, lanes, onSelect, onAddVehicle }: VehicleListProps) {
+export default function VehicleList({ view, sorted, lanes, onSelect, onAddVehicle, onUpdate }: VehicleListProps) {
   if (sorted.length === 0) {
     return (
       <div className="gaa-body">
@@ -29,7 +30,7 @@ export default function VehicleList({ view, sorted, lanes, onSelect, onAddVehicl
   return (
     <div className="gaa-body">
       {view === "all" &&
-        sorted.map((v) => <VehicleCard key={v.id} vehicle={v} onClick={() => onSelect(v.id)} />)}
+        sorted.map((v) => <VehicleCard key={v.id} vehicle={v} onClick={() => onSelect(v.id)} onUpdate={onUpdate} />)}
 
       {view === "lane" &&
         lanes.map(([laneKey, vs]) => (
@@ -42,7 +43,7 @@ export default function VehicleList({ view, sorted, lanes, onSelect, onAddVehicl
               </div>
             </div>
             {vs.map((v) => (
-              <VehicleCard key={v.id} vehicle={v} onClick={() => onSelect(v.id)} />
+              <VehicleCard key={v.id} vehicle={v} onClick={() => onSelect(v.id)} onUpdate={onUpdate} />
             ))}
           </div>
         ))}
