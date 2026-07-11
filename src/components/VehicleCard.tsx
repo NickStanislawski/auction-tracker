@@ -1,12 +1,14 @@
 import { Check, ChevronDown } from "lucide-react";
-import { useState, type CSSProperties } from "react";
-import type { Vehicle } from "../types";
-import { crTone, displayNum, money } from "../utils/vehicle";
+import { type CSSProperties } from "react";
+import type { PurchaseStatus, Vehicle } from "../types";
+import { crTone, displayNum, formatMoneyInput, money } from "../utils/vehicle";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
   onClick: () => void;
   onUpdate: (id: string, field: keyof Vehicle, value: string | boolean) => void;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }
 
 const labelStyle: CSSProperties = {
@@ -39,16 +41,37 @@ const inputStyle: CSSProperties = {
   outline: "none",
 };
 
-export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCardProps) {
-  const [expanded, setExpanded] = useState(false);
+const PURCHASE_OPTIONS: { value: PurchaseStatus; label: string }[] = [
+  { value: "not_purchased", label: "Not Purchased" },
+  { value: "bought", label: "Bought" },
+  { value: "bought_if", label: "Bought If" },
+];
 
+function purchaseTagLabel(status: PurchaseStatus): string | null {
+  if (status === "bought") return "Bought";
+  if (status === "bought_if") return "Bought If";
+  return null;
+}
+
+export default function VehicleCard({ vehicle: v, onClick, onUpdate, expanded, onToggleExpanded }: VehicleCardProps) {
   const update = (field: keyof Vehicle, value: string | boolean) => onUpdate(v.id, field, value);
 
+  const tagLabel = purchaseTagLabel(v.purchaseStatus);
+
+  const hasMmr = v.mmr !== "" && v.mmr !== null && v.mmr !== undefined;
+  const hasBb = !!v.bb.trim();
+  const hasRet = !!v.ret.trim();
+  const hasBuy = !!v.buy.trim();
+  const hasValuesLine = hasMmr || hasBb || hasRet || hasBuy;
+
   return (
-    <div className="vehicle-card" style={{ display: "flex", flexDirection: "column", width: "100%", boxSizing: "border-box" }}>
-      {/* Top row — click anywhere here to open the full detail page */}
+    <div
+      className={`vehicle-card${v.wentDownLine ? " vehicle-card--down" : ""}`}
+      style={{ display: "flex", flexDirection: "column", width: "100%", boxSizing: "border-box" }}
+    >
+      {/* Top row — click anywhere here to expand/collapse the quick-view panel */}
       <div
-        onClick={onClick}
+        onClick={onToggleExpanded}
         style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", cursor: "pointer" }}
       >
         <div className="vehicle-run">
@@ -58,8 +81,32 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="vehicle-main-line">
             {v.year || "—"} {v.make || "New vehicle"} {v.model}
-            {v.bought && <span className="bought-tag">Bought</span>}
+            {tagLabel && <span className="bought-tag">{tagLabel}</span>}
           </div>
+          {hasValuesLine && (
+            <div className="vehicle-values-line">
+              {hasMmr && (
+                <span>
+                  MMR <strong>{money(v.mmr)}</strong>
+                </span>
+              )}
+              {hasBb && (
+                <span>
+                  BB <strong>{money(v.bb)}</strong>
+                </span>
+              )}
+              {hasRet && (
+                <span>
+                  RET <strong>{money(v.ret)}</strong>
+                </span>
+              )}
+              {hasBuy && (
+                <span>
+                  MAX <strong>{money(v.buy)}</strong>
+                </span>
+              )}
+            </div>
+          )}
           <div className="vehicle-meta">
             <span>{displayNum(v.miles)} mi</span>
             <span>{v.color || "—"}</span>
@@ -68,12 +115,11 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <span className={`cr-chip ${crTone(v.cr)}`}>CR {v.cr || "—"}</span>
-          <span className="mmr-value">{money(v.mmr)}</span>
         </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setExpanded((x) => !x);
+            onToggleExpanded();
           }}
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse details" : "Expand details"}
@@ -95,6 +141,29 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
           <ChevronDown size={16} />
         </button>
       </div>
+
+      {/* Collapsed-state footer link — expanded state has its own copy of this below */}
+      {!expanded && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          style={{
+            marginTop: 1,
+            alignSelf: "flex-start",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            color: "#2563eb",
+            fontWeight: 500,
+            padding: 0,
+          }}
+        >
+          Open full details →
+        </button>
+      )}
 
       {/* Expanded panel — full width regardless of any parent flex/align-items settings */}
       {expanded && (
@@ -132,11 +201,11 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
             </span>
           </div>
 
-          {/* Bought toggle + price paid */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          {/* Went down the line toggle + final bid price */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <button
-              onClick={() => update("bought", !v.bought)}
-              aria-pressed={v.bought}
+              onClick={() => update("wentDownLine", !v.wentDownLine)}
+              aria-pressed={v.wentDownLine}
               style={{
                 width: 38,
                 height: 22,
@@ -144,7 +213,7 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
                 border: "none",
                 cursor: "pointer",
                 position: "relative",
-                background: v.bought ? "#2563eb" : "#d8dbe0",
+                background: v.wentDownLine ? "#2563eb" : "#d8dbe0",
                 transition: "background 0.15s ease",
                 flexShrink: 0,
                 padding: 0,
@@ -154,7 +223,7 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
                 style={{
                   position: "absolute",
                   top: 2,
-                  left: v.bought ? 18 : 2,
+                  left: v.wentDownLine ? 18 : 2,
                   width: 18,
                   height: 18,
                   borderRadius: "50%",
@@ -166,17 +235,59 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
                   boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
                 }}
               >
-                {v.bought && <Check size={11} color="#2563eb" />}
+                {v.wentDownLine && <Check size={11} color="#2563eb" />}
               </span>
             </button>
-            <div style={{ flex: "1 1 220px", minWidth: 180 }}>
-              <span style={labelStyle}>Bought</span>
+            <div style={{ flex: "1 1 auto" }}>
+              <span style={{ fontSize: 13.5 }}>Went down the line</span>
+            </div>
+          </div>
+
+          {v.wentDownLine && (
+            <div style={{ marginBottom: 16 }}>
+              <span style={labelStyle}>Final bid price</span>
               <input
                 style={inputStyle}
-                placeholder="Price paid (optional)"
-                value={v.boughtPrice}
-                onChange={(e) => update("boughtPrice", e.target.value)}
+                value={v.finalBidPrice}
+                onChange={(e) => update("finalBidPrice", e.target.value)}
+                placeholder="Final bid price (optional)"
+                inputMode="decimal"
               />
+            </div>
+          )}
+
+          {/* Purchase status — mutually exclusive three-way picker */}
+          <div style={{ marginBottom: 16 }}>
+            <span style={labelStyle}>Purchase status</span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+                gap: 8,
+              }}
+            >
+              {PURCHASE_OPTIONS.map((opt) => {
+                const active = v.purchaseStatus === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => update("purchaseStatus", opt.value)}
+                    style={{
+                      padding: "8px 10px",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      borderRadius: 8,
+                      border: active ? "1px solid #2563eb" : "1px solid #e2e4e9",
+                      background: active ? "#eff4ff" : "#fafafa",
+                      color: active ? "#2563eb" : "#4b5058",
+                      cursor: "pointer",
+                      transition: "all 0.12s ease",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -205,21 +316,35 @@ export default function VehicleCard({ vehicle: v, onClick, onUpdate }: VehicleCa
               <span style={labelStyle}>
                 BB<span style={hintStyle}>Black Book</span>
               </span>
-              <input style={inputStyle} value={v.bb} onChange={(e) => update("bb", e.target.value)} placeholder="Black Book value" />
+              <input
+                style={inputStyle}
+                value={v.bb}
+                onChange={(e) => update("bb", e.target.value)}
+                onBlur={(e) => update("bb", formatMoneyInput(e.target.value))}
+                placeholder="Black Book value"
+              />
             </div>
             <div>
               <span style={labelStyle}>
                 RET<span style={hintStyle}>Retail</span>
               </span>
-              <input style={inputStyle} value={v.ret} onChange={(e) => update("ret", e.target.value)} placeholder="Retail value" />
-            </div>
-            <div>
-              <span style={labelStyle}>Sell</span>
-              <input style={inputStyle} value={v.sell} onChange={(e) => update("sell", e.target.value)} placeholder="Target sell price" />
+              <input
+                style={inputStyle}
+                value={v.ret}
+                onChange={(e) => update("ret", e.target.value)}
+                onBlur={(e) => update("ret", formatMoneyInput(e.target.value))}
+                placeholder="Retail value"
+              />
             </div>
             <div>
               <span style={labelStyle}>Buy</span>
-              <input style={inputStyle} value={v.buy} onChange={(e) => update("buy", e.target.value)} placeholder="Max buy price" />
+              <input
+                style={inputStyle}
+                value={v.buy}
+                onChange={(e) => update("buy", e.target.value)}
+                onBlur={(e) => update("buy", formatMoneyInput(e.target.value))}
+                placeholder="Max buy price"
+              />
             </div>
           </div>
 

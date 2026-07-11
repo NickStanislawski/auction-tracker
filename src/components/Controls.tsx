@@ -14,6 +14,8 @@ interface ControlsProps {
   toggleSortDir: () => void;
   boughtOnly: boolean;
   setBoughtOnly: (b: boolean) => void;
+  activeOnly: boolean;
+  setActiveOnly: (b: boolean) => void;
   onAddVehicle: () => void;
   onImportVehicles: (date: string | null, vehicles: Vehicle[]) => void;
 }
@@ -29,6 +31,8 @@ export default function Controls({
   toggleSortDir,
   boughtOnly,
   setBoughtOnly,
+  activeOnly,
+  setActiveOnly,
   onAddVehicle,
   onImportVehicles,
 }: ControlsProps) {
@@ -65,6 +69,9 @@ export default function Controls({
       </div>
       <button className={`gaa-chip ${boughtOnly ? "active" : ""}`} onClick={() => setBoughtOnly(!boughtOnly)}>
         Bought only
+      </button>
+      <button className={`gaa-chip ${activeOnly ? "active" : ""}`} onClick={() => setActiveOnly(!activeOnly)}>
+        Active only
       </button>
       <ImportButton onImport={onImportVehicles} />
       <button className="gaa-add-btn" onClick={onAddVehicle}>

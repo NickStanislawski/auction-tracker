@@ -1,3 +1,5 @@
+export type PurchaseStatus = "not_purchased" | "bought" | "bought_if";
+
 export interface Vehicle {
   id: string;
   lane: string | number;
@@ -15,10 +17,11 @@ export interface Vehicle {
   cf: string;
   bb: string;
   ret: string;
-  sell: string;
   buy: string;
-  bought: boolean;
-  boughtPrice: string;
+  // Auction / purchase tracking
+  wentDownLine: boolean;
+  finalBidPrice: string;
+  purchaseStatus: PurchaseStatus;
 }
 
 export interface DayEntry {

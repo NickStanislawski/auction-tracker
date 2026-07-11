@@ -36,7 +36,9 @@ export interface ImportResult {
 }
 
 function normalizeHeader(h: unknown): string {
-  return String(h ?? "").trim().toLowerCase();
+  return String(h ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function normNum(v: unknown): string | number {
@@ -50,7 +52,10 @@ function findHeaderRow(rows: unknown[][]): number {
   for (let i = 0; i < scanLimit; i++) {
     const row = (rows[i] || []).map(normalizeHeader);
     const hasVin = row.includes("vin");
-    const hasMakeOrModel = row.includes("make") || row.includes("model/trim") || row.includes("model");
+    const hasMakeOrModel =
+      row.includes("make") ||
+      row.includes("model/trim") ||
+      row.includes("model");
     if (hasVin && hasMakeOrModel) return i;
   }
   return -1;
@@ -74,13 +79,19 @@ function extractDate(rows: unknown[][], headerRowIdx: number): string | null {
 
 export function parseRunListWorkbook(buffer: ArrayBuffer): ImportResult {
   const wb = XLSX.read(buffer, { type: "array" });
-  const sheetName = wb.SheetNames.find((n) => /run\s*list/i.test(n)) || wb.SheetNames[0];
+  const sheetName =
+    wb.SheetNames.find((n) => /run\s*list/i.test(n)) || wb.SheetNames[0];
   const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as unknown[][];
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+  }) as unknown[][];
 
   const headerRowIdx = findHeaderRow(rows);
   if (headerRowIdx === -1) {
-    throw new Error("Couldn't find a header row with VIN/Make/Model columns in this file.");
+    throw new Error(
+      "Couldn't find a header row with VIN/Make/Model columns in this file.",
+    );
   }
 
   const headers = (rows[headerRowIdx] || []).map(normalizeHeader);
@@ -98,7 +109,8 @@ export function parseRunListWorkbook(buffer: ArrayBuffer): ImportResult {
   const vehicles: Vehicle[] = [];
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || row.every((c) => c === "" || c === undefined || c === null)) continue;
+    if (!row || row.every((c) => c === "" || c === undefined || c === null))
+      continue;
 
     const get = (field: keyof Vehicle) => {
       const idx = colMap[field];
@@ -126,10 +138,10 @@ export function parseRunListWorkbook(buffer: ArrayBuffer): ImportResult {
       cf: "",
       bb: "",
       ret: "",
-      sell: "",
       buy: "",
-      bought: false,
-      boughtPrice: "",
+      wentDownLine: false,
+      finalBidPrice: "",
+      purchaseStatus: "not_purchased",
     });
   }
 

@@ -16,6 +16,8 @@ export default function App() {
   const [sortBy, setSortBy] = useState<SortKey>("lane");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [boughtOnly, setBoughtOnly] = useState(false);
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState<Date>(parseDateStr(activeDate));
@@ -32,11 +34,34 @@ export default function App() {
 
   const updateVehicle = (vehicleId: string, field: keyof Vehicle, value: string | boolean) => {
     setDays((prev) =>
-      prev.map((d) =>
-        d.date !== activeDate
-          ? d
-          : { ...d, vehicles: d.vehicles.map((v) => (v.id !== vehicleId ? v : { ...v, [field]: value })) }
-      )
+      prev.map((d) => {
+        if (d.date !== activeDate) return d;
+
+        // Marking a run as "went down the line" implies every earlier run in
+        // that same lane already went down too, since a lane auctions its
+        // runs in order. So catch those up automatically instead of making
+        // someone click through every earlier vehicle by hand.
+        if (field === "wentDownLine" && value === true) {
+          const target = d.vehicles.find((v) => v.id === vehicleId);
+          if (!target) return d;
+          const targetLane = String(target.lane);
+          const targetRun = parseFloat(String(target.run));
+
+          return {
+            ...d,
+            vehicles: d.vehicles.map((v) => {
+              if (v.id === vehicleId) return { ...v, wentDownLine: true };
+              if (v.wentDownLine) return v;
+              if (String(v.lane) !== targetLane) return v;
+              const vRun = parseFloat(String(v.run));
+              if (Number.isNaN(vRun) || Number.isNaN(targetRun) || vRun > targetRun) return v;
+              return { ...v, wentDownLine: true };
+            }),
+          };
+        }
+
+        return { ...d, vehicles: d.vehicles.map((v) => (v.id !== vehicleId ? v : { ...v, [field]: value })) };
+      })
     );
   };
 
@@ -49,7 +74,17 @@ export default function App() {
     });
     setQuery("");
     setBoughtOnly(false);
+    setActiveOnly(false);
     setSelectedId(v.id);
+  };
+
+  const toggleExpanded = (vehicleId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(vehicleId)) next.delete(vehicleId);
+      else next.add(vehicleId);
+      return next;
+    });
   };
 
   const deleteVehicle = (vehicleId: string) => {
@@ -86,10 +121,10 @@ export default function App() {
             cf: current.cf,
             bb: current.bb,
             ret: current.ret,
-            sell: current.sell,
             buy: current.buy,
-            bought: current.bought,
-            boughtPrice: current.boughtPrice,
+            wentDownLine: current.wentDownLine,
+            finalBidPrice: current.finalBidPrice,
+            purchaseStatus: current.purchaseStatus,
           };
         } else {
           merged.push(incoming);
@@ -103,13 +138,15 @@ export default function App() {
     setCalendarViewDate(parseDateStr(targetDate));
     setQuery("");
     setBoughtOnly(false);
+    setActiveOnly(false);
     setSelectedId(null);
   };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return activeDay.vehicles.filter((v) => {
-      if (boughtOnly && !v.bought) return false;
+      if (boughtOnly && v.purchaseStatus !== "bought" && v.purchaseStatus !== "bought_if") return false;
+      if (activeOnly && v.wentDownLine) return false;
       if (!q) return true;
       return (
         (v.make || "").toLowerCase().includes(q) ||
@@ -120,7 +157,7 @@ export default function App() {
         String(v.run).includes(q)
       );
     });
-  }, [activeDay, query, boughtOnly]);
+  }, [activeDay, query, boughtOnly, activeOnly]);
 
   const sorted = useMemo(
     () => [...filtered].sort((a, b) => compareVehicles(a, b, sortBy, sortDir)),
@@ -148,7 +185,7 @@ export default function App() {
   const selectedIndex = sorted.findIndex((v) => v.id === selectedId);
   const prevVehicle = selectedIndex > 0 ? sorted[selectedIndex - 1] : null;
   const nextVehicle = selectedIndex >= 0 && selectedIndex < sorted.length - 1 ? sorted[selectedIndex + 1] : null;
-  const boughtCount = activeDay.vehicles.filter((v) => v.bought).length;
+  const boughtCount = activeDay.vehicles.filter((v) => v.purchaseStatus === "bought").length;
 
   const datesWithData = useMemo(
     () => new Set(days.filter((d) => d.vehicles.length > 0).map((d) => d.date)),
@@ -190,6 +227,16 @@ export default function App() {
   }, [selected, nextVehicle, prevVehicle, editMode]);
 
   const toggleSortDir = () => setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+
+  // Bought only / Active only are mutually exclusive — turning one on turns the other off.
+  const toggleBoughtOnly = (next: boolean) => {
+    setBoughtOnly(next);
+    if (next) setActiveOnly(false);
+  };
+  const toggleActiveOnly = (next: boolean) => {
+    setActiveOnly(next);
+    if (next) setBoughtOnly(false);
+  };
 
   if (!hydrated) return null;
 
@@ -242,12 +289,23 @@ export default function App() {
         sortDir={sortDir}
         toggleSortDir={toggleSortDir}
         boughtOnly={boughtOnly}
-        setBoughtOnly={setBoughtOnly}
+        setBoughtOnly={toggleBoughtOnly}
+        activeOnly={activeOnly}
+        setActiveOnly={toggleActiveOnly}
         onAddVehicle={addVehicle}
         onImportVehicles={importVehicles}
       />
 
-      <VehicleList view={view} sorted={sorted} lanes={lanes} onSelect={setSelectedId} onAddVehicle={addVehicle} />
+      <VehicleList
+        view={view}
+        sorted={sorted}
+        lanes={lanes}
+        onSelect={setSelectedId}
+        onAddVehicle={addVehicle}
+        onUpdate={updateVehicle}
+        expandedIds={expandedIds}
+        onToggleExpanded={toggleExpanded}
+      />
     </div>
   );
 }

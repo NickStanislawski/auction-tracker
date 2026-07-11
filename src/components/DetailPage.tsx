@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Vehicle } from "../types";
-import { crTone, displayNum, money } from "../utils/vehicle";
+import { crTone, displayNum, formatMoneyInput, money } from "../utils/vehicle";
 import { EditField, Stat } from "./FormFields";
 
 interface DetailPageProps {
@@ -118,22 +118,62 @@ export default function DetailPage({
           <div className="detail-form">
             <div className="bought-row">
               <button
-                className={`bought-toggle ${selected.bought ? "on" : ""}`}
-                onClick={() => update("bought", !selected.bought)}
-                aria-pressed={selected.bought}
+                className={`bought-toggle ${selected.wentDownLine ? "on" : ""}`}
+                onClick={() => update("wentDownLine", !selected.wentDownLine)}
+                aria-pressed={selected.wentDownLine}
               >
-                <span className="knob">{selected.bought && <Check />}</span>
+                <span className="knob">{selected.wentDownLine && <Check />}</span>
               </button>
               <div style={{ flex: 1 }}>
                 <div className="field-label" style={{ marginBottom: 4 }}>
-                  Bought
+                  Went down the line
                 </div>
+              </div>
+            </div>
+
+            {selected.wentDownLine && (
+              <div className="field-group">
+                <label className="field-label">Final bid price</label>
                 <input
                   className="field-input"
-                  placeholder="Price paid (optional)"
-                  value={selected.boughtPrice}
-                  onChange={(e) => update("boughtPrice", e.target.value)}
+                  placeholder="Final bid price (optional)"
+                  value={selected.finalBidPrice}
+                  onChange={(e) => update("finalBidPrice", e.target.value)}
                 />
+              </div>
+            )}
+
+            <div className="field-group">
+              <label className="field-label">Purchase status</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8 }}>
+                {(
+                  [
+                    { value: "not_purchased", label: "Not Purchased" },
+                    { value: "bought", label: "Bought" },
+                    { value: "bought_if", label: "Bought If" },
+                  ] as const
+                ).map((opt) => {
+                  const active = selected.purchaseStatus === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => update("purchaseStatus", opt.value)}
+                      style={{
+                        padding: "8px 10px",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        borderRadius: 8,
+                        border: active ? "1px solid #2563eb" : "1px solid #e2e4e9",
+                        background: active ? "#eff4ff" : "#fafafa",
+                        color: active ? "#2563eb" : "#4b5058",
+                        cursor: "pointer",
+                        transition: "all 0.12s ease",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -152,21 +192,35 @@ export default function DetailPage({
               <label className="field-label">
                 BB <span className="field-hint">Black Book</span>
               </label>
-              <input className="field-input" value={selected.bb} onChange={(e) => update("bb", e.target.value)} placeholder="Black Book value" />
+              <input
+                className="field-input"
+                value={selected.bb}
+                onChange={(e) => update("bb", e.target.value)}
+                onBlur={(e) => update("bb", formatMoneyInput(e.target.value))}
+                placeholder="Black Book value"
+              />
             </div>
             <div className="field-group">
               <label className="field-label">
                 RET <span className="field-hint">Retail</span>
               </label>
-              <input className="field-input" value={selected.ret} onChange={(e) => update("ret", e.target.value)} placeholder="Retail value" />
-            </div>
-            <div className="field-group">
-              <label className="field-label">Sell</label>
-              <input className="field-input" value={selected.sell} onChange={(e) => update("sell", e.target.value)} placeholder="Target sell price" />
+              <input
+                className="field-input"
+                value={selected.ret}
+                onChange={(e) => update("ret", e.target.value)}
+                onBlur={(e) => update("ret", formatMoneyInput(e.target.value))}
+                placeholder="Retail value"
+              />
             </div>
             <div className="field-group">
               <label className="field-label">Buy</label>
-              <input className="field-input" value={selected.buy} onChange={(e) => update("buy", e.target.value)} placeholder="Max buy price" />
+              <input
+                className="field-input"
+                value={selected.buy}
+                onChange={(e) => update("buy", e.target.value)}
+                onBlur={(e) => update("buy", formatMoneyInput(e.target.value))}
+                placeholder="Max buy price"
+              />
             </div>
           </div>
         </div>

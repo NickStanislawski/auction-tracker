@@ -34,10 +34,10 @@ export function blankVehicle(): Vehicle {
     cf: "",
     bb: "",
     ret: "",
-    sell: "",
     buy: "",
-    bought: false,
-    boughtPrice: "",
+    wentDownLine: false,
+    finalBidPrice: "",
+    purchaseStatus: "not_purchased",
   };
 }
 
@@ -50,8 +50,21 @@ export function crTone(cr: string | number): CrTone {
 }
 
 export function money(n: string | number): string {
-  const num = Number(n);
-  if (n === "" || n === null || n === undefined || Number.isNaN(num)) return "—";
+  if (n === "" || n === null || n === undefined) return "—";
+  const num = typeof n === "number" ? n : Number(String(n).replace(/[$,\s]/g, ""));
+  if (Number.isNaN(num)) return "—";
+  return "$" + num.toLocaleString();
+}
+
+// Formats a free-typed value (e.g. "15200" or "15,200") into a "$15,200"
+// string for storage, so BB/RET/Buy always read back as a $ figure. Meant to
+// be called onBlur so the person can still type freely while focused. If the
+// value isn't a parseable number (or is empty), it's left untouched.
+export function formatMoneyInput(v: string): string {
+  const trimmed = v.trim();
+  if (trimmed === "") return "";
+  const num = Number(trimmed.replace(/[$,\s]/g, ""));
+  if (Number.isNaN(num)) return v;
   return "$" + num.toLocaleString();
 }
 
