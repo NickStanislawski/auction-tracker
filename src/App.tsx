@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SortDir, SortKey, Vehicle, ViewMode } from "./types";
-import { usePersistedAppState } from "./hooks/usePersistedAppState";
+import { useAuth } from "./hooks/useAuth";
+import { useCloudPersistedAppState } from "./hooks/useCloudPersistedAppState";
 import { compareVehicles, blankVehicle } from "./utils/vehicle";
 import { parseDateStr } from "./utils/date";
 import DateNav from "./components/DateNav";
 import Controls from "./components/Controls";
 import VehicleList from "./components/VehicleList";
 import DetailPage from "./components/DetailPage";
+import LoginScreen from "./components/LoginScreen";
 
 export default function App() {
-  const { days, setDays, activeDate, setActiveDate, hydrated, savedFlash } = usePersistedAppState();
+  const { user, authLoading, authError, signIn, signUp, signOut } = useAuth();
+  const { days, setDays, activeDate, setActiveDate, hydrated, savedFlash, loadingDay, ensureDayLoaded, deleteVehicleRemote } =
+    useCloudPersistedAppState(user);
 
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("lane");
@@ -24,12 +28,20 @@ export default function App() {
 
   const activeDay = days.find((d) => d.date === activeDate) || { date: activeDate, vehicles: [] as Vehicle[] };
 
+  // Fetch the initial active date's vehicles once we're hydrated and know who's logged in.
+  // Later switches are handled inside switchDate itself.
+  useEffect(() => {
+    if (hydrated && user) ensureDayLoaded(activeDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, user]);
+
   const switchDate = (dateStr: string) => {
     setDays((prev) => (prev.find((d) => d.date === dateStr) ? prev : [...prev, { date: dateStr, vehicles: [] }]));
     setActiveDate(dateStr);
     setCalendarViewDate(parseDateStr(dateStr));
     setQuery("");
     setSelectedId(null);
+    ensureDayLoaded(dateStr);
   };
 
   const updateVehicle = (vehicleId: string, field: keyof Vehicle, value: string | boolean) => {
@@ -91,6 +103,7 @@ export default function App() {
     setDays((prev) =>
       prev.map((d) => (d.date !== activeDate ? d : { ...d, vehicles: d.vehicles.filter((v) => v.id !== vehicleId) }))
     );
+    deleteVehicleRemote(vehicleId);
     setSelectedId(null);
   };
 
@@ -103,6 +116,7 @@ export default function App() {
   // VINs are appended.
   const importVehicles = (importedDate: string | null, vehicles: Vehicle[]) => {
     const targetDate = importedDate || activeDate;
+    ensureDayLoaded(targetDate);
 
     setDays((prev) => {
       const existing = prev.find((d) => d.date === targetDate);
@@ -238,6 +252,8 @@ export default function App() {
     if (next) setBoughtOnly(false);
   };
 
+  if (authLoading) return null;
+  if (!user) return <LoginScreen signIn={signIn} signUp={signUp} authError={authError} />;
   if (!hydrated) return null;
 
   if (selected) {
@@ -261,12 +277,37 @@ export default function App() {
 
   return (
     <div className="gaa-app">
-      <div className="gaa-header">
-        <div className="gaa-eyebrow">Run List</div>
-        <div className="gaa-sub">
-          {activeDay.vehicles.length} vehicles · {new Set(activeDay.vehicles.map((v) => v.lane)).size} lanes ·{" "}
-          <b>{boughtCount}</b> bought
+      <div className="gaa-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div className="gaa-eyebrow">Run List</div>
+          <div className="gaa-sub">
+            {loadingDay ? (
+              "Loading vehicles…"
+            ) : (
+              <>
+                {activeDay.vehicles.length} vehicles · {new Set(activeDay.vehicles.map((v) => v.lane)).size} lanes ·{" "}
+                <b>{boughtCount}</b> bought
+              </>
+            )}
+          </div>
         </div>
+        <button
+          onClick={signOut}
+          title={user.email ?? undefined}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 12.5,
+            color: "#8a8f98",
+            fontWeight: 500,
+            padding: 0,
+            flexShrink: 0,
+            marginTop: 2,
+          }}
+        >
+          Sign out
+        </button>
       </div>
 
       <DateNav
