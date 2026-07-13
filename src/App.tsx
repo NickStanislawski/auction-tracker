@@ -160,7 +160,7 @@ export default function App() {
     const q = query.trim().toLowerCase();
     return activeDay.vehicles.filter((v) => {
       if (boughtOnly && v.purchaseStatus !== "bought" && v.purchaseStatus !== "bought_if") return false;
-      if (activeOnly && v.wentDownLine) return false;
+      if (activeOnly && v.wentDownLine && !expandedIds.has(v.id)) return false;
       if (!q) return true;
       return (
         (v.make || "").toLowerCase().includes(q) ||
@@ -171,7 +171,7 @@ export default function App() {
         String(v.run).includes(q)
       );
     });
-  }, [activeDay, query, boughtOnly, activeOnly]);
+  }, [activeDay, query, boughtOnly, activeOnly, expandedIds]);
 
   const sorted = useMemo(
     () => [...filtered].sort((a, b) => compareVehicles(a, b, sortBy, sortDir)),
